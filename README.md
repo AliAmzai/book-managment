@@ -83,7 +83,6 @@ http://localhost:4200
 
 - [Angular](https://angular.io/) - The web framework used
 - [Tailwind CSS](https://tailwindcss.com/) - For styling
-- [Angular CLI](https://cli.angular.io/) - Development tooling
 
 ## 💡 Usage
 
