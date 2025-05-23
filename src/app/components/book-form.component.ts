@@ -83,6 +83,12 @@ import { Book } from '../models/book.model';
             </p>
           </div>
 
+          <!-- Form Status Message -->
+          <div *ngIf="isEditMode && !hasFormChanged && bookForm.valid" 
+               class="text-sm text-gray-500 italic">
+            No changes have been made to the book
+          </div>
+
           <!-- Buttons -->
           <div class="flex justify-end gap-4 pt-6">
             <button
@@ -94,7 +100,7 @@ import { Book } from '../models/book.model';
             </button>
             <button
               type="submit"
-              [disabled]="!bookForm.valid"
+              [disabled]="isSubmitDisabled()"
               class="px-6 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg *ngIf="!isEditMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -115,6 +121,8 @@ export class BookFormComponent implements OnInit {
   bookForm: FormGroup;
   isEditMode = false;
   private bookId: number | null = null;
+  private initialFormValue: Book | null = null;
+  hasFormChanged = false;
 
   constructor(
     private fb: FormBuilder,
@@ -127,6 +135,13 @@ export class BookFormComponent implements OnInit {
       title: ['', Validators.required],
       author: ['', Validators.required],
       date: [null, Validators.required]
+    });
+
+    // Subscribe to form value changes
+    this.bookForm.valueChanges.subscribe(() => {
+      if (this.isEditMode && this.initialFormValue) {
+        this.hasFormChanged = !this.isFormEqual(this.bookForm.value as Book, this.initialFormValue);
+      }
     });
   }
 
@@ -141,23 +156,35 @@ export class BookFormComponent implements OnInit {
         const date = new Date(book.date);
         const formattedDate = date.toISOString().split('T')[0];
         
-        this.bookForm.patchValue({
-          title: book.title,
-          author: book.author,
+        const formValue: Book = {
+          ...book,
           date: formattedDate
-        });
+        };
+        
+        this.bookForm.patchValue(formValue);
+        this.initialFormValue = formValue;
+        this.hasFormChanged = false;
       }
     }
   }
 
+  // Helper method to compare form values
+  private isFormEqual(current: Book, initial: Book): boolean {
+    return (
+      current.title === initial.title &&
+      current.author === initial.author &&
+      current.date === initial.date
+    );
+  }
+
   onSubmit(): void {
     if (this.bookForm.valid) {
-      const formValue = this.bookForm.value;
+      const formValue = this.bookForm.value as Book;
       const date = new Date(formValue.date);
       const year = date.getFullYear().toString();
 
       if (this.isEditMode && this.bookId) {
-        const updatedBook = {
+        const updatedBook: Book = {
           id: this.bookId,
           title: formValue.title,
           author: formValue.author,
@@ -166,11 +193,11 @@ export class BookFormComponent implements OnInit {
         this.bookService.updateBook(updatedBook);
         this.toastService.show(`"${updatedBook.title}" has been updated successfully`, 'success');
       } else {
-        const newBook = {
+        const newBook: Book = {
           title: formValue.title,
           author: formValue.author,
           date: year
-        };
+        } as Book;
         this.bookService.addBook(newBook);
         this.toastService.show(`"${newBook.title}" has been added successfully`, 'success');
       }
@@ -180,6 +207,10 @@ export class BookFormComponent implements OnInit {
         this.router.navigate(['/']);
       }, 100);
     }
+  }
+
+  isSubmitDisabled(): boolean {
+    return !this.bookForm.valid || (this.isEditMode && !this.hasFormChanged);
   }
 
   onCancel(): void {
