@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { BookService } from '../services/book.service';
+import { ToastService } from '../services/toast.service';
 import { Book } from '../models/book.model';
 
 @Component({
@@ -119,7 +120,8 @@ export class BookFormComponent implements OnInit {
     private fb: FormBuilder,
     private bookService: BookService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {
     this.bookForm = this.fb.group({
       title: ['', Validators.required],
@@ -155,20 +157,28 @@ export class BookFormComponent implements OnInit {
       const year = date.getFullYear().toString();
 
       if (this.isEditMode && this.bookId) {
-        this.bookService.update({
+        const updatedBook = {
           id: this.bookId,
           title: formValue.title,
           author: formValue.author,
           date: year
-        });
+        };
+        this.bookService.updateBook(updatedBook);
+        this.toastService.show(`"${updatedBook.title}" has been updated successfully`, 'success');
       } else {
-        this.bookService.addBook({
+        const newBook = {
           title: formValue.title,
           author: formValue.author,
           date: year
-        });
+        };
+        this.bookService.addBook(newBook);
+        this.toastService.show(`"${newBook.title}" has been added successfully`, 'success');
       }
-      this.router.navigate(['/']);
+      
+      // Navigate after a small delay to ensure the toast is shown
+      setTimeout(() => {
+        this.router.navigate(['/']);
+      }, 100);
     }
   }
 

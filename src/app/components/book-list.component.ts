@@ -1,10 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BookService } from '../services/book.service';
 import { Book } from '../models/book.model';
 import { ConfirmModalComponent } from './confirm-modal.component';
+import { ToastService } from '../services/toast.service';
+import { ToastComponent } from './toast.component';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-book-list',
@@ -13,9 +16,11 @@ import { ConfirmModalComponent } from './confirm-modal.component';
     CommonModule,
     RouterModule,
     FormsModule,
-    ConfirmModalComponent
+    ConfirmModalComponent,
+    ToastComponent
   ],
   template: `
+    <app-toast></app-toast>
     <div class="min-h-screen bg-gradient-to-br from-slate-100 to-white p-4 sm:p-8">
       <div class="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         <!-- Header Section -->
@@ -261,7 +266,7 @@ import { ConfirmModalComponent } from './confirm-modal.component';
     ></app-confirm-modal>
   `
 })
-export class BookListComponent implements OnInit {
+export class BookListComponent implements OnInit, OnDestroy {
   books: Book[] = [];
   filteredBooks: Book[] = [];
   displayedBooks: Book[] = [];
@@ -272,6 +277,7 @@ export class BookListComponent implements OnInit {
   isDeleteModalOpen = false;
   bookToDelete: Book | null = null;
   viewMode: 'table' | 'card' = 'table';
+  private subscriptions: Subscription[] = [];
 
   get startIndex(): number {
     return (this.currentPage - 1) * this.pageSize;
@@ -290,15 +296,42 @@ export class BookListComponent implements OnInit {
   }
 
   constructor(
-    private bookService: BookService
-  ) {
-    this.bookService.getBooks().subscribe(books => {
-      this.books = books;
-      this.applyFiltersAndSort();
-    });
-  }
+    private bookService: BookService,
+    private toastService: ToastService
+  ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Clear any existing subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
+
+    // Subscribe to books list
+    this.subscriptions.push(
+      this.bookService.getBooks().subscribe(books => {
+        this.books = books;
+        this.applyFiltersAndSort();
+      })
+    );
+
+    // Subscribe to book events
+    this.subscriptions.push(
+      this.bookService.bookAdded$.subscribe(book => {
+        this.toastService.show(`"${book.title}" has been added successfully`, 'success');
+      })
+    );
+
+    this.subscriptions.push(
+      this.bookService.bookUpdated$.subscribe(book => {
+        this.toastService.show(`"${book.title}" has been updated successfully`, 'success');
+      })
+    );
+
+    this.subscriptions.push(
+      this.bookService.bookDeleted$.subscribe(book => {
+        this.toastService.show(`"${book.title}" has been deleted`, 'success');
+      })
+    );
+  }
 
   openDeleteModal(book: Book): void {
     this.bookToDelete = book;
@@ -403,5 +436,11 @@ export class BookListComponent implements OnInit {
     }
     
     return [1, '...', current - 1, current, current + 1, '...', totalPages];
+  }
+
+  ngOnDestroy(): void {
+    // Clean up all subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
   }
 }

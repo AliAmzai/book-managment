@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { Book } from '../models/book.model';
 
 @Injectable({
@@ -25,6 +25,13 @@ export class BookService {
   ];
 
   private booksSubject = new BehaviorSubject<Book[]>(this.books);
+  private bookAddedSubject = new Subject<Book>();
+  private bookUpdatedSubject = new Subject<Book>();
+  private bookDeletedSubject = new Subject<Book>();
+
+  bookAdded$ = this.bookAddedSubject.asObservable();
+  bookUpdated$ = this.bookUpdatedSubject.asObservable();
+  bookDeleted$ = this.bookDeletedSubject.asObservable();
 
   getBooks(): Observable<Book[]> {
     return this.booksSubject.asObservable();
@@ -37,19 +44,28 @@ export class BookService {
     };
     this.books.push(newBook);
     this.booksSubject.next(this.books);
+    this.bookAddedSubject.next(newBook);
+  }
+
+  updateBook(book: Book): void {
+    const index = this.books.findIndex(b => b.id === book.id);
+    if (index !== -1) {
+      this.books[index] = book;
+      this.booksSubject.next(this.books);
+      this.bookUpdatedSubject.next(book);
+    }
   }
 
   deleteBook(id: number): void {
-    this.books = this.books.filter(book => book.id !== id);
-    this.booksSubject.next(this.books);
+    const bookToDelete = this.books.find(book => book.id === id);
+    if (bookToDelete) {
+      this.books = this.books.filter(book => book.id !== id);
+      this.booksSubject.next(this.books);
+      this.bookDeletedSubject.next(bookToDelete);
+    }
   }
 
-  update(updatedBook: Book) {
-    this.books = this.books.map(b => b.id === updatedBook.id ? updatedBook : b);
-    this.booksSubject.next(this.books);
-  }
-
-  getById(id: number) {
+  getById(id: number): Book | undefined {
     return this.books.find(b => b.id === id);
   }
 }
